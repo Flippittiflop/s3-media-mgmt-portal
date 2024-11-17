@@ -8,7 +8,7 @@ export const configureAmplify = () => {
       userPoolWebClientId: process.env.NEXT_PUBLIC_USER_POOL_CLIENT_ID,
       mandatorySignIn: true,
       cookieStorage: {
-        domain: 'localhost',
+        domain: process.env.NODE_ENV === 'development' ? 'localhost' : process.env.NEXT_PUBLIC_DOMAIN,
         path: '/',
         expires: 365,
         sameSite: 'strict',
@@ -24,12 +24,13 @@ export const configureAmplify = () => {
           custom_header: async () => {
             try {
               const session = await Amplify.Auth.currentSession();
+              const token = session.getIdToken().getJwtToken();
               return {
-                Authorization: `Bearer ${session.getAccessToken().getJwtToken()}`,
+                Authorization: `Bearer ${token}`,
                 'Content-Type': 'application/json'
               };
             } catch (error) {
-              console.error('Error getting access token:', error);
+              console.error('Error getting token:', error);
               return {};
             }
           }
