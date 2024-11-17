@@ -4,6 +4,7 @@ import { isAdmin } from '@/lib/auth';
 export interface CategoryCreate {
   name: string;
   description?: string;
+  templateId: string;
 }
 
 export interface Category extends CategoryCreate {

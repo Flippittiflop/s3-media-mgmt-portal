@@ -10,12 +10,16 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { CategoryService } from '@/lib/services/category-service';
+import { TemplateService, Template } from '@/lib/services/template-service';
 import { isAdmin } from '@/lib/auth';
 
 const categorySchema = z.object({
   name: z.string().min(2, 'Category name must be at least 2 characters'),
   description: z.string().optional(),
+  templateId: z.string().min(1, 'Template is required'),
 });
 
 type CategoryForm = z.infer<typeof categorySchema>;
@@ -24,21 +28,25 @@ interface Category {
   id: string;
   name: string;
   description?: string;
+  templateId: string;
 }
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [isAdminUser, setIsAdminUser] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
   
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<CategoryForm>({
+  const { register, handleSubmit, reset, formState: { errors }, setValue } = useForm<CategoryForm>({
     resolver: zodResolver(categorySchema),
   });
 
   useEffect(() => {
     loadCategories();
+    loadTemplates();
     checkAdminStatus();
   }, []);
 
@@ -60,6 +68,19 @@ export default function CategoriesPage() {
     }
   };
 
+  const loadTemplates = async () => {
+    try {
+      const response = await TemplateService.getTemplates();
+      setTemplates(response);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to load templates',
+      });
+    }
+  };
+
   const onSubmit = async (data: CategoryForm) => {
     setIsLoading(true);
     try {
@@ -73,6 +94,7 @@ export default function CategoriesPage() {
       loadCategories();
       reset();
       setSelectedCategory(null);
+      setIsDialogOpen(false);
     } catch (error) {
       toast({
         variant: 'destructive',
@@ -100,12 +122,17 @@ export default function CategoriesPage() {
     }
   };
 
+  const getTemplateName = (templateId: string) => {
+    const template = templates.find(t => t.id === templateId);
+    return template ? template.name : 'Unknown Template';
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-3xl font-bold tracking-tight">Categories</h2>
         {isAdminUser && (
-          <Dialog>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button className="flex items-center space-x-2">
                 <Plus className="h-4 w-4" />
@@ -117,22 +144,50 @@ export default function CategoriesPage() {
                 <DialogTitle>{selectedCategory ? 'Edit Category' : 'Add New Category'}</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                <div>
-                  <Input
-                    {...register('name')}
-                    placeholder="Category Name"
-                    className={errors.name ? 'border-destructive' : ''}
-                  />
-                  {errors.name && (
-                    <p className="mt-1 text-sm text-destructive">{errors.name.message}</p>
-                  )}
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="name">Category Name</Label>
+                    <Input
+                      id="name"
+                      {...register('name')}
+                      className={errors.name ? 'border-destructive' : ''}
+                    />
+                    {errors.name && (
+                      <p className="mt-1 text-sm text-destructive">{errors.name.message}</p>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="description">Description (optional)</Label>
+                    <Input
+                      id="description"
+                      {...register('description')}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="template">Template</Label>
+                    <Select
+                      onValueChange={(value) => setValue('templateId', value)}
+                      defaultValue={selectedCategory?.templateId}
+                    >
+                      <SelectTrigger className={errors.templateId ? 'border-destructive' : ''}>
+                        <SelectValue placeholder="Select a template" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {templates.map((template) => (
+                          <SelectItem key={template.id} value={template.id}>
+                            {template.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.templateId && (
+                      <p className="mt-1 text-sm text-destructive">{errors.templateId.message}</p>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <Input
-                    {...register('description')}
-                    placeholder="Description (optional)"
-                  />
-                </div>
+
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? 'Saving...' : 'Save Category'}
                 </Button>
@@ -154,13 +209,20 @@ export default function CategoriesPage() {
                       {category.description}
                     </p>
                   )}
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Template: {getTemplateName(category.templateId)}
+                  </p>
                 </div>
                 {isAdminUser && (
                   <div className="flex space-x-2">
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => setSelectedCategory(category)}
+                      onClick={() => {
+                        setSelectedCategory(category);
+                        reset(category);
+                        setIsDialogOpen(true);
+                      }}
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
