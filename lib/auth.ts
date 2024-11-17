@@ -18,13 +18,14 @@ export interface AuthUser {
 export const signIn = async ({ email, password }: AuthCredentials) => {
   try {
     const user = await Auth.signIn(email, password);
-    const userGroups = user.signInUserSession.accessToken.payload['cognito:groups'] || [];
-    return { 
+    const session = user.signInUserSession;
+    const userGroups = session.accessToken.payload['cognito:groups'] || [];
+    return {
       user: {
         email: user.attributes.email,
         groups: userGroups,
       },
-      error: null 
+      error: null
     };
   } catch (error) {
     return { user: null, error: error as Error };
@@ -43,13 +44,14 @@ export const signOut = async () => {
 export const getCurrentUser = async () => {
   try {
     const user = await Auth.currentAuthenticatedUser();
-    const userGroups = user.signInUserSession.accessToken.payload['cognito:groups'] || [];
-    return { 
+    const session = user.signInUserSession;
+    const userGroups = session.accessToken.payload['cognito:groups'] || [];
+    return {
       user: {
         email: user.attributes.email,
         groups: userGroups,
       },
-      error: null 
+      error: null
     };
   } catch (error) {
     return { user: null, error: error as Error };

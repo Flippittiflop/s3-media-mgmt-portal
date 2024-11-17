@@ -1,8 +1,5 @@
-import axios from 'axios';
-import { Auth } from 'aws-amplify';
+import { API } from 'aws-amplify';
 import { isAdmin } from '@/lib/auth';
-
-const API_URL = process.env.NEXT_PUBLIC_API_ENDPOINT;
 
 export interface CategoryCreate {
   name: string;
@@ -14,42 +11,55 @@ export interface Category extends CategoryCreate {
 }
 
 export class CategoryService {
-  private static async getAuthHeader() {
-    const session = await Auth.currentSession();
-    return {
-      Authorization: `Bearer ${session.getIdToken().getJwtToken()}`,
-    };
-  }
-
   static async getCategories(): Promise<Category[]> {
-    const headers = await this.getAuthHeader();
-    const response = await axios.get(`${API_URL}/admin/categories`, { headers });
-    return response.data;
+    try {
+      const response = await API.get('api', '/admin/categories', {});
+      return response;
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      throw error;
+    }
   }
 
   static async createCategory(category: CategoryCreate): Promise<Category> {
     if (!await isAdmin()) {
       throw new Error('Unauthorized: Admin access required');
     }
-    const headers = await this.getAuthHeader();
-    const response = await axios.post(`${API_URL}/admin/categories`, category, { headers });
-    return response.data;
+    try {
+      const response = await API.post('api', '/admin/categories', {
+        body: category
+      });
+      return response;
+    } catch (error) {
+      console.error('Error creating category:', error);
+      throw error;
+    }
   }
 
   static async updateCategory(id: string, category: CategoryCreate): Promise<Category> {
     if (!await isAdmin()) {
       throw new Error('Unauthorized: Admin access required');
     }
-    const headers = await this.getAuthHeader();
-    const response = await axios.put(`${API_URL}/admin/categories/${id}`, category, { headers });
-    return response.data;
+    try {
+      const response = await API.put('api', `/admin/categories/${id}`, {
+        body: category
+      });
+      return response;
+    } catch (error) {
+      console.error('Error updating category:', error);
+      throw error;
+    }
   }
 
   static async deleteCategory(id: string): Promise<void> {
     if (!await isAdmin()) {
       throw new Error('Unauthorized: Admin access required');
     }
-    const headers = await this.getAuthHeader();
-    await axios.delete(`${API_URL}/admin/categories/${id}`, { headers });
+    try {
+      await API.del('api', `/admin/categories/${id}`, {});
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      throw error;
+    }
   }
 }
